@@ -21,21 +21,21 @@ def get_papers_table(year):
     papers = []
     paper = {}
     for td in tds:
-        for elem in td.contents:
-            if isinstance(elem, element.NavigableString):
-                paper['authors'] = unicode(elem)
-                paper['year'] = year
-                paper['section'] = paper_type
-                papers.append(paper)
-                paper = {}
-            elif elem.name == 'a':
-                href = url + elem.attrs['href']
-                title = "".join(elem.contents)
-                paper['url'] = href
-                paper['title'] = title
-            elif elem.name == 'h2':
-                section_name, = elem.contents
-                paper_type = section_name.strip()
+        elem = td.contents[0]
+        if isinstance(elem, element.NavigableString):
+            paper['authors'] = unicode(elem)
+            paper['year'] = year
+            paper['section'] = paper_type
+            papers.append(paper)
+            paper = {}
+        elif elem.name == 'a':
+            href = url + elem.attrs['href']
+            title = "".join(elem.contents)
+            paper['url'] = href
+            paper['title'] = title
+        elif elem.name == 'h2':
+            section_name, = elem.contents
+            paper_type = section_name.strip()
 
     return pd.DataFrame(papers)
 
@@ -81,6 +81,7 @@ def get_papers_list(year):
             paper['title'] = title
             paper['section'] = paper_type
 
+            sibling = elem.findNextSibling()
             authors, = sibling.contents
             paper['authors'] = unicode(authors)
             papers.append(paper)
@@ -97,5 +98,17 @@ def get_papers():
         get_papers_list(2010)
     ])
 
-    papers = papers.reset_index(drop=True)
+    papers = papers\
+        .set_index('url')\
+        .sort()
+
+    if papers.isnull().any().any():
+        raise RuntimeError("some entries are null")
+
     return papers
+
+
+if __name__ == "__main__":
+    pathname = "cogsci_proceedings_raw.csv"
+    papers = get_papers()
+    papers.to_csv(pathname, encoding='utf-8')
